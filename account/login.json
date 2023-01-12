@@ -1,0 +1,476 @@
+{
+  "meta": {
+    "$_POST": [
+      {
+        "type": "text",
+        "options": {
+          "rules": {
+            "core:required": {}
+          }
+        },
+        "name": "username"
+      },
+      {
+        "type": "text",
+        "options": {
+          "rules": {
+            "core:required": {}
+          }
+        },
+        "name": "password"
+      },
+      {
+        "type": "boolean",
+        "name": "remember"
+      }
+    ]
+  },
+  "exec": {
+    "steps": [
+      {
+        "name": "",
+        "module": "core",
+        "action": "condition",
+        "options": {
+          "if": "{{$_ENV.RECAPTCHA_SECRET_KEY!=null&&$_ENV.RECAPTCHA_SECRET_KEY.length()>0}}",
+          "then": {
+            "steps": {
+              "name": "recaptcha",
+              "module": "recaptcha",
+              "action": "validate",
+              "options": {
+                "secret": "{{$_ENV.RECAPTCHA_SECRET_KEY}}"
+              }
+            }
+          }
+        },
+        "outputType": "boolean"
+      },
+      {
+        "name": "username",
+        "module": "core",
+        "action": "setvalue",
+        "options": {
+          "value": "{{$_POST.username.lowercase()}}"
+        },
+        "meta": [],
+        "outputType": "text"
+      },
+      {
+        "name": "get_creds",
+        "module": "dbconnector",
+        "action": "single",
+        "options": {
+          "connection": "database",
+          "sql": {
+            "type": "SELECT",
+            "columns": [
+              {
+                "table": "users",
+                "column": "id"
+              },
+              {
+                "table": "users",
+                "column": "username"
+              },
+              {
+                "table": "users",
+                "column": "password"
+              },
+              {
+                "table": "users",
+                "column": "status"
+              }
+            ],
+            "params": [
+              {
+                "operator": "equal",
+                "type": "expression",
+                "name": ":P1",
+                "value": "{{username}}",
+                "test": ""
+              }
+            ],
+            "table": {
+              "name": "users"
+            },
+            "primary": "id",
+            "joins": [],
+            "query": "SELECT id, username, password, status\nFROM users\nWHERE username = :P1 /* {{username}} */",
+            "wheres": {
+              "condition": "AND",
+              "rules": [
+                {
+                  "id": "users.username",
+                  "field": "users.username",
+                  "type": "string",
+                  "operator": "equal",
+                  "value": "{{username}}",
+                  "data": {
+                    "table": "users",
+                    "column": "username",
+                    "type": "text",
+                    "columnObj": {
+                      "type": "text",
+                      "primary": false,
+                      "unique": false,
+                      "nullable": true,
+                      "name": "username"
+                    }
+                  },
+                  "operation": "="
+                }
+              ],
+              "conditional": null,
+              "valid": true
+            }
+          }
+        },
+        "meta": [
+          {
+            "type": "number",
+            "name": "id"
+          },
+          {
+            "type": "text",
+            "name": "username"
+          },
+          {
+            "type": "text",
+            "name": "password"
+          },
+          {
+            "type": "text",
+            "name": "status"
+          }
+        ],
+        "outputType": "object"
+      },
+      {
+        "name": "",
+        "module": "core",
+        "action": "condition",
+        "options": {
+          "if": "{{get_creds.username==username}}",
+          "then": {
+            "steps": [
+              {
+                "name": "verify",
+                "module": "crypto",
+                "action": "passwordVerify",
+                "options": {
+                  "password": "{{$_POST.password}}",
+                  "hash": "{{get_creds.password}}"
+                },
+                "outputType": "boolean"
+              },
+              {
+                "name": "",
+                "module": "core",
+                "action": "condition",
+                "options": {
+                  "if": "{{verify}}",
+                  "then": {
+                    "steps": {
+                      "name": "",
+                      "module": "core",
+                      "action": "condition",
+                      "options": {
+                        "if": "{{get_creds.status=='DISABLED'}}",
+                        "then": {
+                          "steps": [
+                            {
+                              "name": "log_attempted_login_on_disabled_account",
+                              "module": "dbupdater",
+                              "action": "insert",
+                              "options": {
+                                "connection": "database",
+                                "sql": {
+                                  "type": "insert",
+                                  "values": [
+                                    {
+                                      "table": "user_logs",
+                                      "column": "userid",
+                                      "type": "number",
+                                      "value": "{{get_creds.id}}"
+                                    },
+                                    {
+                                      "table": "user_logs",
+                                      "column": "activity",
+                                      "type": "text",
+                                      "value": "Attempted login on disabled account"
+                                    },
+                                    {
+                                      "table": "user_logs",
+                                      "column": "data",
+                                      "type": "text",
+                                      "value": "{{get_creds.username}}"
+                                    },
+                                    {
+                                      "table": "user_logs",
+                                      "column": "created",
+                                      "type": "datetime",
+                                      "value": "NOW()"
+                                    }
+                                  ],
+                                  "table": "user_logs",
+                                  "returning": "id",
+                                  "query": "INSERT INTO user_logs\n(userid, activity, data, created) VALUES (:P1 /* {{get_creds.id}} */, 'Attempted login on disabled account', :P2 /* {{get_creds.username}} */, 'NOW()')",
+                                  "params": [
+                                    {
+                                      "name": ":P1",
+                                      "type": "expression",
+                                      "value": "{{get_creds.id}}",
+                                      "test": ""
+                                    },
+                                    {
+                                      "name": ":P2",
+                                      "type": "expression",
+                                      "value": "{{get_creds.username}}",
+                                      "test": ""
+                                    }
+                                  ]
+                                }
+                              },
+                              "meta": [
+                                {
+                                  "name": "identity",
+                                  "type": "text"
+                                },
+                                {
+                                  "name": "affected",
+                                  "type": "number"
+                                }
+                              ]
+                            },
+                            {
+                              "name": "",
+                              "module": "core",
+                              "action": "response",
+                              "options": {
+                                "status": 403,
+                                "data": "Account is disabled"
+                              }
+                            }
+                          ]
+                        },
+                        "else": {
+                          "steps": {
+                            "name": "",
+                            "options": {
+                              "comment": "Login step below should be fine as password matches"
+                            }
+                          }
+                        }
+                      },
+                      "outputType": "boolean"
+                    }
+                  },
+                  "else": {
+                    "steps": {
+                      "name": "log_incorrect_password",
+                      "module": "dbupdater",
+                      "action": "insert",
+                      "options": {
+                        "connection": "database",
+                        "sql": {
+                          "type": "insert",
+                          "values": [
+                            {
+                              "table": "user_logs",
+                              "column": "userid",
+                              "type": "number",
+                              "value": "{{get_creds.id}}"
+                            },
+                            {
+                              "table": "user_logs",
+                              "column": "activity",
+                              "type": "text",
+                              "value": "Incorrect password"
+                            },
+                            {
+                              "table": "user_logs",
+                              "column": "data",
+                              "type": "text",
+                              "value": "{{username}}"
+                            },
+                            {
+                              "table": "user_logs",
+                              "column": "created",
+                              "type": "datetime",
+                              "value": "NOW()"
+                            }
+                          ],
+                          "table": "user_logs",
+                          "returning": "id",
+                          "query": "INSERT INTO user_logs\n(userid, activity, data, created) VALUES (:P1 /* {{get_creds.id}} */, 'Incorrect password', :P2 /* {{username}} */, 'NOW()')",
+                          "params": [
+                            {
+                              "name": ":P1",
+                              "type": "expression",
+                              "value": "{{get_creds.id}}",
+                              "test": ""
+                            },
+                            {
+                              "name": ":P2",
+                              "type": "expression",
+                              "value": "{{username}}",
+                              "test": ""
+                            }
+                          ]
+                        }
+                      },
+                      "meta": [
+                        {
+                          "name": "identity",
+                          "type": "text"
+                        },
+                        {
+                          "name": "affected",
+                          "type": "number"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "outputType": "boolean"
+              }
+            ]
+          },
+          "else": {
+            "steps": {
+              "name": "log_invalid_username",
+              "module": "dbupdater",
+              "action": "insert",
+              "options": {
+                "connection": "database",
+                "sql": {
+                  "type": "insert",
+                  "values": [
+                    {
+                      "table": "user_logs",
+                      "column": "activity",
+                      "type": "text",
+                      "value": "Invalid username"
+                    },
+                    {
+                      "table": "user_logs",
+                      "column": "data",
+                      "type": "text",
+                      "value": "{{$_POST.username}}"
+                    },
+                    {
+                      "table": "user_logs",
+                      "column": "created",
+                      "type": "datetime",
+                      "value": "NOW()"
+                    }
+                  ],
+                  "table": "user_logs",
+                  "returning": "id",
+                  "query": "INSERT INTO user_logs\n(activity, data, created) VALUES ('Invalid username', :P1 /* {{$_POST.username}} */, 'NOW()')",
+                  "params": [
+                    {
+                      "name": ":P1",
+                      "type": "expression",
+                      "value": "{{$_POST.username}}",
+                      "test": ""
+                    }
+                  ]
+                }
+              },
+              "meta": [
+                {
+                  "name": "identity",
+                  "type": "text"
+                },
+                {
+                  "name": "affected",
+                  "type": "number"
+                }
+              ]
+            }
+          }
+        },
+        "outputType": "boolean"
+      },
+      {
+        "name": "identity",
+        "module": "auth",
+        "action": "login",
+        "options": {
+          "provider": "security"
+        },
+        "output": true,
+        "meta": []
+      },
+      {
+        "name": "log_valid_login",
+        "module": "dbupdater",
+        "action": "insert",
+        "options": {
+          "connection": "database",
+          "sql": {
+            "type": "insert",
+            "values": [
+              {
+                "table": "user_logs",
+                "column": "userid",
+                "type": "number",
+                "value": "{{identity}}"
+              },
+              {
+                "table": "user_logs",
+                "column": "activity",
+                "type": "text",
+                "value": "Valid login"
+              },
+              {
+                "table": "user_logs",
+                "column": "data",
+                "type": "text",
+                "value": "{{username}}"
+              },
+              {
+                "table": "user_logs",
+                "column": "created",
+                "type": "datetime",
+                "value": "NOW()"
+              }
+            ],
+            "table": "user_logs",
+            "returning": "id",
+            "query": "INSERT INTO user_logs\n(userid, activity, data, created) VALUES (:P1 /* {{identity}} */, 'Valid login', :P2 /* {{username}} */, 'NOW()')",
+            "params": [
+              {
+                "name": ":P1",
+                "type": "expression",
+                "value": "{{identity}}",
+                "test": ""
+              },
+              {
+                "name": ":P2",
+                "type": "expression",
+                "value": "{{username}}",
+                "test": ""
+              }
+            ]
+          }
+        },
+        "meta": [
+          {
+            "name": "identity",
+            "type": "text"
+          },
+          {
+            "name": "affected",
+            "type": "number"
+          }
+        ]
+      }
+    ]
+  },
+  "usedModules": {
+    "argon2": "^0.30.2"
+  }
+}
