@@ -36,7 +36,7 @@
         }
       },
       "else": {
-        "steps": "lib/restrict"
+        "steps": "lib/userauth-lib/restrict"
       }
     },
     "outputType": "boolean"
