@@ -31,12 +31,12 @@
           "module": "core",
           "action": "redirect",
           "options": {
-            "url": "/userauth-web/database-reset"
+            "url": "/userauth/database-reset"
           }
         }
       },
       "else": {
-        "steps": "lib/userauth-lib/restrict"
+        "steps": "lib/userauth/restrict"
       }
     },
     "outputType": "boolean"
