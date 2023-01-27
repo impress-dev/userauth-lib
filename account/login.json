@@ -244,6 +244,14 @@
                               ]
                             },
                             {
+                              "name": "refresh",
+                              "module": "sockets",
+                              "action": "refresh",
+                              "options": {
+                                "action": "userauth/admin/info"
+                              }
+                            },
+                            {
                               "name": "",
                               "module": "core",
                               "action": "response",
@@ -267,70 +275,80 @@
                     }
                   },
                   "else": {
-                    "steps": {
-                      "name": "log_incorrect_password",
-                      "module": "dbupdater",
-                      "action": "insert",
-                      "options": {
-                        "connection": "database",
-                        "sql": {
-                          "type": "insert",
-                          "values": [
-                            {
-                              "table": "user_logs",
-                              "column": "userid",
-                              "type": "number",
-                              "value": "{{get_creds.id}}"
-                            },
-                            {
-                              "table": "user_logs",
-                              "column": "activity",
-                              "type": "text",
-                              "value": "Incorrect password"
-                            },
-                            {
-                              "table": "user_logs",
-                              "column": "data",
-                              "type": "text",
-                              "value": "{{username}}"
-                            },
-                            {
-                              "table": "user_logs",
-                              "column": "created",
-                              "type": "datetime",
-                              "value": "NOW()"
-                            }
-                          ],
-                          "table": "user_logs",
-                          "returning": "id",
-                          "query": "INSERT INTO user_logs\n(userid, activity, data, created) VALUES (:P1 /* {{get_creds.id}} */, 'Incorrect password', :P2 /* {{username}} */, 'NOW()')",
-                          "params": [
-                            {
-                              "name": ":P1",
-                              "type": "expression",
-                              "value": "{{get_creds.id}}",
-                              "test": ""
-                            },
-                            {
-                              "name": ":P2",
-                              "type": "expression",
-                              "value": "{{username}}",
-                              "test": ""
-                            }
-                          ]
-                        }
-                      },
-                      "meta": [
-                        {
-                          "name": "identity",
-                          "type": "text"
+                    "steps": [
+                      {
+                        "name": "log_incorrect_password",
+                        "module": "dbupdater",
+                        "action": "insert",
+                        "options": {
+                          "connection": "database",
+                          "sql": {
+                            "type": "insert",
+                            "values": [
+                              {
+                                "table": "user_logs",
+                                "column": "userid",
+                                "type": "number",
+                                "value": "{{get_creds.id}}"
+                              },
+                              {
+                                "table": "user_logs",
+                                "column": "activity",
+                                "type": "text",
+                                "value": "Incorrect password"
+                              },
+                              {
+                                "table": "user_logs",
+                                "column": "data",
+                                "type": "text",
+                                "value": "{{username}}"
+                              },
+                              {
+                                "table": "user_logs",
+                                "column": "created",
+                                "type": "datetime",
+                                "value": "NOW()"
+                              }
+                            ],
+                            "table": "user_logs",
+                            "returning": "id",
+                            "query": "INSERT INTO user_logs\n(userid, activity, data, created) VALUES (:P1 /* {{get_creds.id}} */, 'Incorrect password', :P2 /* {{username}} */, 'NOW()')",
+                            "params": [
+                              {
+                                "name": ":P1",
+                                "type": "expression",
+                                "value": "{{get_creds.id}}",
+                                "test": ""
+                              },
+                              {
+                                "name": ":P2",
+                                "type": "expression",
+                                "value": "{{username}}",
+                                "test": ""
+                              }
+                            ]
+                          }
                         },
-                        {
-                          "name": "affected",
-                          "type": "number"
+                        "meta": [
+                          {
+                            "name": "identity",
+                            "type": "text"
+                          },
+                          {
+                            "name": "affected",
+                            "type": "number"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "refresh1",
+                        "module": "sockets",
+                        "action": "refresh",
+                        "options": {
+                          "action": "userauth/admin/info"
                         }
-                      ]
-                    }
+                      }
+                    ]
                   }
                 },
                 "outputType": "boolean"
@@ -338,58 +356,68 @@
             ]
           },
           "else": {
-            "steps": {
-              "name": "log_invalid_username",
-              "module": "dbupdater",
-              "action": "insert",
-              "options": {
-                "connection": "database",
-                "sql": {
-                  "type": "insert",
-                  "values": [
-                    {
-                      "table": "user_logs",
-                      "column": "activity",
-                      "type": "text",
-                      "value": "Invalid username"
-                    },
-                    {
-                      "table": "user_logs",
-                      "column": "data",
-                      "type": "text",
-                      "value": "{{$_POST.username}}"
-                    },
-                    {
-                      "table": "user_logs",
-                      "column": "created",
-                      "type": "datetime",
-                      "value": "NOW()"
-                    }
-                  ],
-                  "table": "user_logs",
-                  "returning": "id",
-                  "query": "INSERT INTO user_logs\n(activity, data, created) VALUES ('Invalid username', :P1 /* {{$_POST.username}} */, 'NOW()')",
-                  "params": [
-                    {
-                      "name": ":P1",
-                      "type": "expression",
-                      "value": "{{$_POST.username}}",
-                      "test": ""
-                    }
-                  ]
-                }
-              },
-              "meta": [
-                {
-                  "name": "identity",
-                  "type": "text"
+            "steps": [
+              {
+                "name": "log_invalid_username",
+                "module": "dbupdater",
+                "action": "insert",
+                "options": {
+                  "connection": "database",
+                  "sql": {
+                    "type": "insert",
+                    "values": [
+                      {
+                        "table": "user_logs",
+                        "column": "activity",
+                        "type": "text",
+                        "value": "Invalid username"
+                      },
+                      {
+                        "table": "user_logs",
+                        "column": "data",
+                        "type": "text",
+                        "value": "{{$_POST.username}}"
+                      },
+                      {
+                        "table": "user_logs",
+                        "column": "created",
+                        "type": "datetime",
+                        "value": "NOW()"
+                      }
+                    ],
+                    "table": "user_logs",
+                    "returning": "id",
+                    "query": "INSERT INTO user_logs\n(activity, data, created) VALUES ('Invalid username', :P1 /* {{$_POST.username}} */, 'NOW()')",
+                    "params": [
+                      {
+                        "name": ":P1",
+                        "type": "expression",
+                        "value": "{{$_POST.username}}",
+                        "test": ""
+                      }
+                    ]
+                  }
                 },
-                {
-                  "name": "affected",
-                  "type": "number"
+                "meta": [
+                  {
+                    "name": "identity",
+                    "type": "text"
+                  },
+                  {
+                    "name": "affected",
+                    "type": "number"
+                  }
+                ]
+              },
+              {
+                "name": "refresh2",
+                "module": "sockets",
+                "action": "refresh",
+                "options": {
+                  "action": "userauth/admin/info"
                 }
-              ]
-            }
+              }
+            ]
           }
         },
         "outputType": "boolean"
@@ -467,6 +495,14 @@
             "type": "number"
           }
         ]
+      },
+      {
+        "name": "refresh3",
+        "module": "sockets",
+        "action": "refresh",
+        "options": {
+          "action": "userauth/admin/info"
+        }
       }
     ]
   },
