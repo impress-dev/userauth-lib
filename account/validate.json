@@ -21,7 +21,7 @@
         "options": {
           "connection": "database",
           "sql": {
-            "query": "SELECT username, password, key\nFROM user_actions\nWHERE key = :P1 /* {{$_GET.key}} */ AND created >= NOW() - INTERVAL '1 DAY';",
+            "query": "SELECT id as useractionid, username, password, key\nFROM user_actions\nWHERE key = :P1 /* {{$_GET.key}} */ AND created >= NOW() - INTERVAL '1 DAY';",
             "params": [
               {
                 "name": ":P1",
@@ -32,6 +32,10 @@
           }
         },
         "meta": [
+          {
+            "name": "useractionid",
+            "type": "number"
+          },
           {
             "name": "username",
             "type": "text"

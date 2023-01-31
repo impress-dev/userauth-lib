@@ -513,7 +513,7 @@
                         "fromName": "{{$_ENV.EMAIL_SENDER}}",
                         "fromEmail": "{{$_ENV.EMAIL_SENDER}}",
                         "toEmail": "{{$_POST.username}}",
-                        "body": "Please follow the below link to complete registration.\n\n{{$_SERVER.BASE_URL}}/api/userauth/account/validate?key={{get_key.key}}"
+                        "body": "Please follow the below link to complete registration.\n\n{{$_SERVER.BASE_URL}}/api/{{$_ENV.USERAUTH_VALIDATE_API?$_ENV.USERAUTH_VALIDATE_API:'userauth/account/validate'}}?key={{get_key.key}}"
                       }
                     }
                   }
