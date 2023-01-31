@@ -1,0 +1,320 @@
+{
+  "meta": {
+    "$_GET": [
+      {
+        "type": "text",
+        "options": {
+          "rules": {
+            "core:required": {}
+          }
+        },
+        "name": "key"
+      }
+    ]
+  },
+  "exec": {
+    "steps": [
+      {
+        "name": "get_pending_user",
+        "module": "dbupdater",
+        "action": "custom",
+        "options": {
+          "connection": "database",
+          "sql": {
+            "query": "SELECT username, password, key\nFROM user_actions\nWHERE key = :P1 /* {{$_GET.key}} */ AND created >= NOW() - INTERVAL '1 DAY';",
+            "params": [
+              {
+                "name": ":P1",
+                "value": "{{$_GET.key}}",
+                "test": "1"
+              }
+            ]
+          }
+        },
+        "meta": [
+          {
+            "name": "username",
+            "type": "text"
+          },
+          {
+            "name": "password",
+            "type": "text"
+          },
+          {
+            "name": "key",
+            "type": "text"
+          }
+        ]
+      },
+      {
+        "name": "",
+        "module": "core",
+        "action": "condition",
+        "options": {
+          "if": "{{get_pending_user[0].key==$_GET.key}}",
+          "then": {
+            "steps": [
+              {
+                "name": "insert_new_user",
+                "module": "dbupdater",
+                "action": "insert",
+                "options": {
+                  "connection": "database",
+                  "sql": {
+                    "type": "insert",
+                    "values": [
+                      {
+                        "table": "users",
+                        "column": "username",
+                        "type": "text",
+                        "value": "{{get_pending_user[0].username}}"
+                      },
+                      {
+                        "table": "users",
+                        "column": "password",
+                        "type": "text",
+                        "value": "{{get_pending_user[0].password}}"
+                      },
+                      {
+                        "table": "users",
+                        "column": "created",
+                        "type": "datetime",
+                        "value": "NOW()"
+                      },
+                      {
+                        "table": "users",
+                        "column": "updated",
+                        "type": "datetime",
+                        "value": "NOW()"
+                      }
+                    ],
+                    "table": "users",
+                    "returning": "id",
+                    "query": "INSERT INTO users\n(username, password, created, updated) VALUES (:P1 /* {{get_pending_user[0].username}} */, :P2 /* {{get_pending_user[0].password}} */, 'NOW()', 'NOW()')",
+                    "params": [
+                      {
+                        "name": ":P1",
+                        "type": "expression",
+                        "value": "{{get_pending_user[0].username}}",
+                        "test": ""
+                      },
+                      {
+                        "name": ":P2",
+                        "type": "expression",
+                        "value": "{{get_pending_user[0].password}}",
+                        "test": ""
+                      }
+                    ]
+                  }
+                },
+                "meta": [
+                  {
+                    "name": "identity",
+                    "type": "text"
+                  },
+                  {
+                    "name": "affected",
+                    "type": "number"
+                  }
+                ]
+              },
+              {
+                "name": "log_validated_user",
+                "module": "dbupdater",
+                "action": "insert",
+                "options": {
+                  "connection": "database",
+                  "sql": {
+                    "type": "insert",
+                    "values": [
+                      {
+                        "table": "user_logs",
+                        "column": "userid",
+                        "type": "number",
+                        "value": "{{insert_new_user.identity}}"
+                      },
+                      {
+                        "table": "user_logs",
+                        "column": "activity",
+                        "type": "text",
+                        "value": "User validated"
+                      },
+                      {
+                        "table": "user_logs",
+                        "column": "data",
+                        "type": "text",
+                        "value": "{{get_pending_user[0].username}}"
+                      },
+                      {
+                        "table": "user_logs",
+                        "column": "created",
+                        "type": "datetime",
+                        "value": "NOW()"
+                      }
+                    ],
+                    "table": "user_logs",
+                    "returning": "id",
+                    "query": "INSERT INTO user_logs\n(userid, activity, data, created) VALUES (:P1 /* {{insert_new_user.identity}} */, 'User validated', :P2 /* {{get_pending_user[0].username}} */, 'NOW()')",
+                    "params": [
+                      {
+                        "name": ":P1",
+                        "type": "expression",
+                        "value": "{{insert_new_user.identity}}",
+                        "test": ""
+                      },
+                      {
+                        "name": ":P2",
+                        "type": "expression",
+                        "value": "{{get_pending_user[0].username}}",
+                        "test": ""
+                      }
+                    ]
+                  }
+                },
+                "meta": [
+                  {
+                    "name": "identity",
+                    "type": "text"
+                  },
+                  {
+                    "name": "affected",
+                    "type": "number"
+                  }
+                ]
+              },
+              {
+                "name": "delete_user_action",
+                "module": "dbupdater",
+                "action": "delete",
+                "options": {
+                  "connection": "database",
+                  "sql": {
+                    "type": "delete",
+                    "table": "user_actions",
+                    "wheres": {
+                      "condition": "AND",
+                      "rules": [
+                        {
+                          "id": "key",
+                          "field": "key",
+                          "type": "string",
+                          "operator": "equal",
+                          "value": "{{$_GET.key}}",
+                          "data": {
+                            "column": "key"
+                          },
+                          "operation": "="
+                        }
+                      ],
+                      "conditional": null,
+                      "valid": true
+                    },
+                    "returning": "id",
+                    "query": "DELETE\nFROM user_actions\nWHERE key = :P1 /* {{$_GET.key}} */",
+                    "params": [
+                      {
+                        "operator": "equal",
+                        "type": "expression",
+                        "name": ":P1",
+                        "value": "{{$_GET.key}}",
+                        "test": ""
+                      }
+                    ]
+                  }
+                },
+                "meta": [
+                  {
+                    "name": "affected",
+                    "type": "number"
+                  }
+                ]
+              },
+              {
+                "name": "refresh",
+                "module": "sockets",
+                "action": "refresh",
+                "options": {
+                  "action": "userauth/admin/info"
+                }
+              }
+            ]
+          },
+          "else": {
+            "steps": [
+              {
+                "name": "log_validate_user_bad_key",
+                "module": "dbupdater",
+                "action": "insert",
+                "options": {
+                  "connection": "database",
+                  "sql": {
+                    "type": "insert",
+                    "values": [
+                      {
+                        "table": "user_logs",
+                        "column": "activity",
+                        "type": "text",
+                        "value": "Validate user bad key"
+                      },
+                      {
+                        "table": "user_logs",
+                        "column": "data",
+                        "type": "text",
+                        "value": "{{$_GET.key}}"
+                      },
+                      {
+                        "table": "user_logs",
+                        "column": "created",
+                        "type": "datetime",
+                        "value": "NOW()"
+                      }
+                    ],
+                    "table": "user_logs",
+                    "returning": "id",
+                    "query": "INSERT INTO user_logs\n(activity, data, created) VALUES ('Validate user bad key', :P1 /* {{$_GET.key}} */, 'NOW()')",
+                    "params": [
+                      {
+                        "name": ":P1",
+                        "type": "expression",
+                        "value": "{{$_GET.key}}",
+                        "test": ""
+                      }
+                    ]
+                  }
+                },
+                "meta": [
+                  {
+                    "name": "identity",
+                    "type": "text"
+                  },
+                  {
+                    "name": "affected",
+                    "type": "number"
+                  }
+                ]
+              },
+              {
+                "name": "refresh1",
+                "module": "sockets",
+                "action": "refresh",
+                "options": {
+                  "action": "userauth/admin/info"
+                }
+              },
+              {
+                "name": "",
+                "module": "core",
+                "action": "response",
+                "options": {
+                  "status": 404,
+                  "data": "Key not found"
+                }
+              }
+            ]
+          }
+        },
+        "outputType": "boolean"
+      }
+    ]
+  }
+}
