@@ -4,7 +4,7 @@
   "action": "restrict",
   "options": {
     "provider": "security",
-    "loginUrl": "{{'/userauth/login?return='+$_SERVER.URL+($_SERVER.QUERY_STRING?'?'+$_SERVER.QUERY_STRING.replace('=', '%3D').replace('&', '%26'):'')}}",
-    "forbiddenUrl": "/userauth/forbidden"
+    "loginUrl": "{{$_ENV.USERAUTH_LOGIN_PAGE?'/'+$_ENV.USERAUTH_LOGIN_PAGE+'?return='+$_SERVER.URL+($_SERVER.QUERY_STRING?'?'+$_SERVER.QUERY_STRING.replace('=', '%3D').replace('&', '%26'):''):'/userauth/login?return='+$_SERVER.URL+($_SERVER.QUERY_STRING?'?'+$_SERVER.QUERY_STRING.replace('=', '%3D').replace('&', '%26'):'')}}",
+    "forbiddenUrl": "{{$_ENV.USERAUTH_FORBIDDEN_PAGE?'/'+$_ENV.USERAUTH_FORBIDDEN_PAGE:'/userauth/forbidden'}}"
   }
 }
