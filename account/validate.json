@@ -123,6 +123,58 @@
                 ]
               },
               {
+                "name": "insert_usedkey",
+                "module": "dbupdater",
+                "action": "insert",
+                "options": {
+                  "connection": "database",
+                  "sql": {
+                    "type": "insert",
+                    "values": [
+                      {
+                        "table": "user_usedkeys",
+                        "column": "key",
+                        "type": "text",
+                        "value": "{{$_GET.key}}"
+                      },
+                      {
+                        "table": "user_usedkeys",
+                        "column": "created",
+                        "type": "datetime",
+                        "value": "NOW()"
+                      },
+                      {
+                        "table": "user_usedkeys",
+                        "column": "updated",
+                        "type": "datetime",
+                        "value": "NOW()"
+                      }
+                    ],
+                    "table": "user_usedkeys",
+                    "returning": "id",
+                    "query": "INSERT INTO user_usedkeys\n(key, created, updated) VALUES (:P1 /* {{$_GET.key}} */, 'NOW()', 'NOW()')",
+                    "params": [
+                      {
+                        "name": ":P1",
+                        "type": "expression",
+                        "value": "{{$_GET.key}}",
+                        "test": ""
+                      }
+                    ]
+                  }
+                },
+                "meta": [
+                  {
+                    "name": "identity",
+                    "type": "text"
+                  },
+                  {
+                    "name": "affected",
+                    "type": "number"
+                  }
+                ]
+              },
+              {
                 "name": "log_validated_user",
                 "module": "dbupdater",
                 "action": "insert",
@@ -246,73 +298,160 @@
           "else": {
             "steps": [
               {
-                "name": "log_validate_user_bad_key",
-                "module": "dbupdater",
-                "action": "insert",
+                "name": "check_usedkey",
+                "module": "dbconnector",
+                "action": "single",
                 "options": {
                   "connection": "database",
                   "sql": {
-                    "type": "insert",
-                    "values": [
+                    "type": "SELECT",
+                    "columns": [
                       {
-                        "table": "user_logs",
-                        "column": "activity",
-                        "type": "text",
-                        "value": "Validate user bad key"
-                      },
-                      {
-                        "table": "user_logs",
-                        "column": "data",
-                        "type": "text",
-                        "value": "{{$_GET.key}}"
-                      },
-                      {
-                        "table": "user_logs",
-                        "column": "created",
-                        "type": "datetime",
-                        "value": "NOW()"
+                        "table": "user_usedkeys",
+                        "column": "id"
                       }
                     ],
-                    "table": "user_logs",
-                    "returning": "id",
-                    "query": "INSERT INTO user_logs\n(activity, data, created) VALUES ('Validate user bad key', :P1 /* {{$_GET.key}} */, 'NOW()')",
                     "params": [
                       {
-                        "name": ":P1",
+                        "operator": "equal",
                         "type": "expression",
+                        "name": ":P1",
                         "value": "{{$_GET.key}}",
                         "test": ""
                       }
-                    ]
+                    ],
+                    "table": {
+                      "name": "user_usedkeys"
+                    },
+                    "primary": "id",
+                    "joins": [],
+                    "wheres": {
+                      "condition": "AND",
+                      "rules": [
+                        {
+                          "id": "user_usedkeys.key",
+                          "field": "user_usedkeys.key",
+                          "type": "string",
+                          "operator": "equal",
+                          "value": "{{$_GET.key}}",
+                          "data": {
+                            "table": "user_usedkeys",
+                            "column": "key",
+                            "type": "text",
+                            "columnObj": {
+                              "type": "text",
+                              "primary": false,
+                              "unique": false,
+                              "nullable": true,
+                              "name": "key"
+                            }
+                          },
+                          "operation": "="
+                        }
+                      ],
+                      "conditional": null,
+                      "valid": true
+                    },
+                    "query": "SELECT id\nFROM user_usedkeys\nWHERE key = :P1 /* {{$_GET.key}} */"
                   }
                 },
                 "meta": [
                   {
-                    "name": "identity",
-                    "type": "text"
-                  },
-                  {
-                    "name": "affected",
-                    "type": "number"
+                    "type": "number",
+                    "name": "id"
                   }
-                ]
-              },
-              {
-                "name": "refresh1",
-                "module": "sockets",
-                "action": "refresh",
-                "options": {
-                  "action": "userauth/admin/info"
-                }
+                ],
+                "outputType": "object"
               },
               {
                 "name": "",
                 "module": "core",
-                "action": "response",
+                "action": "condition",
                 "options": {
-                  "status": 404,
-                  "data": "Key not found"
-                }
+                  "if": "{{check_usedkey.id>0}}",
+                  "then": {
+                    "steps": {
+                      "name": "",
+                      "options": {
+                        "comment": "Do same as validation path as key is/was valid"
+                      }
+                    }
+                  },
+                  "else": {
+                    "steps": [
+                      {
+                        "name": "log_validate_user_bad_key",
+                        "module": "dbupdater",
+                        "action": "insert",
+                        "options": {
+                          "connection": "database",
+                          "sql": {
+                            "type": "insert",
+                            "values": [
+                              {
+                                "table": "user_logs",
+                                "column": "activity",
+                                "type": "text",
+                                "value": "Validate user bad key"
+                              },
+                              {
+                                "table": "user_logs",
+                                "column": "data",
+                                "type": "text",
+                                "value": "{{$_GET.key}}"
+                              },
+                              {
+                                "table": "user_logs",
+                                "column": "created",
+                                "type": "datetime",
+                                "value": "NOW()"
+                              }
+                            ],
+                            "table": "user_logs",
+                            "returning": "id",
+                            "query": "INSERT INTO user_logs\n(activity, data, created) VALUES ('Validate user bad key', :P1 /* {{$_GET.key}} */, 'NOW()')",
+                            "params": [
+                              {
+                                "name": ":P1",
+                                "type": "expression",
+                                "value": "{{$_GET.key}}",
+                                "test": ""
+                              }
+                            ]
+                          }
+                        },
+                        "meta": [
+                          {
+                            "name": "identity",
+                            "type": "text"
+                          },
+                          {
+                            "name": "affected",
+                            "type": "number"
+                          }
+                        ]
+                      },
+                      {
+                        "name": "refresh1",
+                        "module": "sockets",
+                        "action": "refresh",
+                        "options": {
+                          "action": "userauth/admin/info"
+                        }
+                      },
+                      {
+                        "name": "",
+                        "module": "core",
+                        "action": "response",
+                        "options": {
+                          "status": 404,
+                          "data": "Key not found"
+                        }
+                      }
+                    ]
+                  }
+                },
+                "outputType": "boolean"
               }
             ]
           }
