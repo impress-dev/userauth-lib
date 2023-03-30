@@ -1,0 +1,452 @@
+{
+  "meta": {
+    "$_POST": [
+      {
+        "type": "text",
+        "options": {
+          "rules": {
+            "core:required": {}
+          }
+        },
+        "name": "old_password"
+      },
+      {
+        "type": "text",
+        "options": {
+          "rules": {
+            "core:required": {}
+          }
+        },
+        "name": "new_password"
+      }
+    ]
+  },
+  "exec": {
+    "steps": [
+      "lib/userauth/account/restrict",
+      {
+        "name": "identity",
+        "module": "auth",
+        "action": "identify",
+        "options": {
+          "provider": "security"
+        },
+        "output": true,
+        "meta": []
+      },
+      {
+        "name": "fail_message",
+        "module": "core",
+        "action": "setvalue",
+        "options": {
+          "value": "Password change fail"
+        },
+        "meta": [],
+        "outputType": "text"
+      },
+      {
+        "name": "",
+        "module": "core",
+        "action": "condition",
+        "options": {
+          "if": "{{$_POST.old_password==$_POST.new_password}}",
+          "then": {
+            "steps": [
+              {
+                "name": "log_password_change_fail",
+                "module": "dbupdater",
+                "action": "insert",
+                "options": {
+                  "connection": "database",
+                  "sql": {
+                    "type": "insert",
+                    "values": [
+                      {
+                        "table": "user_logs",
+                        "column": "userid",
+                        "type": "number",
+                        "value": "{{identity}}"
+                      },
+                      {
+                        "table": "user_logs",
+                        "column": "activity",
+                        "type": "text",
+                        "value": "Password change fail"
+                      },
+                      {
+                        "table": "user_logs",
+                        "column": "data",
+                        "type": "text",
+                        "value": "Old and new passwords don't match"
+                      },
+                      {
+                        "table": "user_logs",
+                        "column": "created",
+                        "type": "datetime",
+                        "value": "NOW()"
+                      }
+                    ],
+                    "table": "user_logs",
+                    "returning": "id",
+                    "query": "insert into \"user_logs\" (\"activity\", \"created\", \"data\", \"userid\") values (?, ?, ?, ?)",
+                    "params": [
+                      {
+                        "name": ":P1",
+                        "type": "expression",
+                        "value": "{{identity}}",
+                        "test": ""
+                      }
+                    ]
+                  }
+                },
+                "meta": [
+                  {
+                    "name": "identity",
+                    "type": "text"
+                  },
+                  {
+                    "name": "affected",
+                    "type": "number"
+                  }
+                ]
+              },
+              {
+                "name": "refresh",
+                "module": "sockets",
+                "action": "refresh",
+                "options": {
+                  "action": "userauth/admin/info"
+                }
+              },
+              {
+                "name": "",
+                "module": "core",
+                "action": "response",
+                "options": {
+                  "data": "Old and new password are the same",
+                  "status": 401
+                }
+              }
+            ]
+          }
+        },
+        "outputType": "boolean"
+      },
+      {
+        "name": "get_password_hash",
+        "module": "dbconnector",
+        "action": "single",
+        "options": {
+          "connection": "database",
+          "sql": {
+            "type": "select",
+            "columns": [
+              {
+                "table": "users",
+                "column": "password"
+              }
+            ],
+            "params": [
+              {
+                "operator": "equal",
+                "type": "expression",
+                "name": ":P1",
+                "value": "{{identity}}",
+                "test": ""
+              }
+            ],
+            "table": {
+              "name": "users"
+            },
+            "primary": "id",
+            "joins": [],
+            "wheres": {
+              "condition": "AND",
+              "rules": [
+                {
+                  "id": "users.id",
+                  "field": "users.id",
+                  "type": "double",
+                  "operator": "equal",
+                  "value": "{{identity}}",
+                  "data": {
+                    "table": "users",
+                    "column": "id",
+                    "type": "number",
+                    "columnObj": {
+                      "type": "increments",
+                      "default": "",
+                      "primary": true,
+                      "unique": true,
+                      "nullable": false,
+                      "name": "id"
+                    }
+                  },
+                  "operation": "="
+                }
+              ],
+              "conditional": null,
+              "valid": true
+            },
+            "query": "select \"password\" from \"users\" where \"users\".\"id\" = ?"
+          }
+        },
+        "meta": [
+          {
+            "type": "text",
+            "name": "password"
+          }
+        ],
+        "outputType": "object"
+      },
+      {
+        "name": "verify",
+        "module": "crypto",
+        "action": "passwordVerify",
+        "options": {
+          "password": "{{$_POST.old_password}}",
+          "hash": "{{get_password_hash.password}}"
+        },
+        "outputType": "boolean"
+      },
+      {
+        "name": "",
+        "module": "core",
+        "action": "condition",
+        "options": {
+          "if": "{{verify}}",
+          "then": {
+            "steps": [
+              {
+                "name": "hash",
+                "module": "crypto",
+                "action": "passwordHash",
+                "options": {
+                  "password": "{{$_POST.new_password}}",
+                  "algo": "argon2id"
+                },
+                "outputType": "text"
+              },
+              {
+                "name": "update_password",
+                "module": "dbupdater",
+                "action": "update",
+                "options": {
+                  "connection": "database",
+                  "sql": {
+                    "type": "update",
+                    "values": [
+                      {
+                        "table": "users",
+                        "column": "password",
+                        "type": "text",
+                        "value": "{{hash}}"
+                      },
+                      {
+                        "table": "users",
+                        "column": "updated",
+                        "type": "datetime",
+                        "value": "NOW()"
+                      }
+                    ],
+                    "table": "users",
+                    "wheres": {
+                      "condition": "AND",
+                      "rules": [
+                        {
+                          "id": "id",
+                          "field": "id",
+                          "type": "double",
+                          "operator": "equal",
+                          "value": "{{identity}}",
+                          "data": {
+                            "column": "id"
+                          },
+                          "operation": "="
+                        }
+                      ],
+                      "conditional": null,
+                      "valid": true
+                    },
+                    "returning": "id",
+                    "query": "update \"users\" set \"password\" = ?, \"updated\" = ? where \"id\" = ?",
+                    "params": [
+                      {
+                        "name": ":P1",
+                        "type": "expression",
+                        "value": "{{hash}}",
+                        "test": ""
+                      },
+                      {
+                        "operator": "equal",
+                        "type": "expression",
+                        "name": ":P2",
+                        "value": "{{identity}}",
+                        "test": ""
+                      }
+                    ]
+                  }
+                },
+                "meta": [
+                  {
+                    "name": "affected",
+                    "type": "number"
+                  }
+                ]
+              },
+              {
+                "name": "log_password_change",
+                "module": "dbupdater",
+                "action": "insert",
+                "options": {
+                  "connection": "database",
+                  "sql": {
+                    "type": "insert",
+                    "values": [
+                      {
+                        "table": "user_logs",
+                        "column": "userid",
+                        "type": "number",
+                        "value": "{{identity}}"
+                      },
+                      {
+                        "table": "user_logs",
+                        "column": "activity",
+                        "type": "text",
+                        "value": "Password change"
+                      },
+                      {
+                        "table": "user_logs",
+                        "column": "created",
+                        "type": "datetime",
+                        "value": "NOW()"
+                      }
+                    ],
+                    "table": "user_logs",
+                    "returning": "id",
+                    "query": "insert into \"user_logs\" (\"activity\", \"created\", \"userid\") values (?, ?, ?)",
+                    "params": [
+                      {
+                        "name": ":P1",
+                        "type": "expression",
+                        "value": "{{identity}}",
+                        "test": ""
+                      }
+                    ]
+                  }
+                },
+                "meta": [
+                  {
+                    "name": "identity",
+                    "type": "text"
+                  },
+                  {
+                    "name": "affected",
+                    "type": "number"
+                  }
+                ]
+              },
+              {
+                "name": "refresh1",
+                "module": "sockets",
+                "action": "refresh",
+                "options": {
+                  "action": "userauth/admin/info"
+                }
+              }
+            ]
+          },
+          "else": {
+            "steps": [
+              {
+                "name": "log_password_change_fail",
+                "module": "dbupdater",
+                "action": "insert",
+                "options": {
+                  "connection": "database",
+                  "sql": {
+                    "type": "insert",
+                    "values": [
+                      {
+                        "table": "user_logs",
+                        "column": "userid",
+                        "type": "number",
+                        "value": "{{identity}}"
+                      },
+                      {
+                        "table": "user_logs",
+                        "column": "activity",
+                        "type": "text",
+                        "value": "{{fail_message+'Pasword change fail'}}"
+                      },
+                      {
+                        "table": "user_logs",
+                        "column": "data",
+                        "type": "text",
+                        "value": "Old pasword incorrect"
+                      },
+                      {
+                        "table": "user_logs",
+                        "column": "created",
+                        "type": "datetime",
+                        "value": "NOW()"
+                      }
+                    ],
+                    "table": "user_logs",
+                    "returning": "id",
+                    "query": "insert into \"user_logs\" (\"activity\", \"created\", \"data\", \"userid\") values (?, ?, ?, ?) returning \"id\"",
+                    "params": [
+                      {
+                        "name": ":P1",
+                        "type": "expression",
+                        "value": "{{identity}}",
+                        "test": ""
+                      },
+                      {
+                        "name": ":P2",
+                        "type": "expression",
+                        "value": "{{fail_message+'Pasword change fail'}}",
+                        "test": ""
+                      }
+                    ]
+                  }
+                },
+                "meta": [
+                  {
+                    "name": "identity",
+                    "type": "text"
+                  },
+                  {
+                    "name": "affected",
+                    "type": "number"
+                  }
+                ]
+              },
+              {
+                "name": "refresh2",
+                "module": "sockets",
+                "action": "refresh",
+                "options": {
+                  "action": "userauth/admin/info"
+                }
+              },
+              {
+                "name": "",
+                "module": "core",
+                "action": "response",
+                "options": {
+                  "status": 401,
+                  "data": "Old password did not match"
+                }
+              }
+            ]
+          }
+        },
+        "outputType": "boolean"
+      }
+    ]
+  },
+  "usedModules": {
+    "argon2": "^0.30.2"
+  }
+}

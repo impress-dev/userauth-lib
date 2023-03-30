@@ -1,0 +1,372 @@
+{
+  "meta": {
+    "$_POST": [
+      {
+        "type": "text",
+        "options": {
+          "rules": {
+            "core:required": {}
+          }
+        },
+        "name": "new_password"
+      },
+      {
+        "type": "text",
+        "options": {
+          "rules": {
+            "core:required": {}
+          }
+        },
+        "name": "key"
+      }
+    ]
+  },
+  "exec": {
+    "steps": [
+      {
+        "name": "get_user_action",
+        "module": "dbupdater",
+        "action": "custom",
+        "options": {
+          "connection": "database",
+          "sql": {
+            "query": "SELECT id, username, key\nFROM user_actions\nWHERE key = :P1 /* {{$_POST.key}} */ AND created >= NOW() - INTERVAL '1 DAY';",
+            "params": [
+              {
+                "name": ":P1",
+                "value": "{{$_POST.key}}",
+                "test": "abc"
+              }
+            ]
+          }
+        },
+        "meta": [
+          {
+            "name": "id",
+            "type": "number"
+          },
+          {
+            "name": "username",
+            "type": "text"
+          },
+          {
+            "name": "key",
+            "type": "text"
+          }
+        ]
+      },
+      {
+        "name": "",
+        "module": "core",
+        "action": "condition",
+        "options": {
+          "if": "{{get_user_action[0].key==$_POST.key}}",
+          "then": {
+            "steps": [
+              {
+                "name": "get_creds",
+                "module": "dbconnector",
+                "action": "single",
+                "options": {
+                  "connection": "database",
+                  "sql": {
+                    "type": "select",
+                    "columns": [
+                      {
+                        "table": "users",
+                        "column": "id"
+                      }
+                    ],
+                    "params": [
+                      {
+                        "operator": "equal",
+                        "type": "expression",
+                        "name": ":P1",
+                        "value": "{{get_user_action[0].username}}",
+                        "test": ""
+                      }
+                    ],
+                    "table": {
+                      "name": "users"
+                    },
+                    "primary": "id",
+                    "joins": [],
+                    "wheres": {
+                      "condition": "AND",
+                      "rules": [
+                        {
+                          "id": "users.username",
+                          "field": "users.username",
+                          "type": "string",
+                          "operator": "equal",
+                          "value": "{{get_user_action[0].username}}",
+                          "data": {
+                            "table": "users",
+                            "column": "username",
+                            "type": "text",
+                            "columnObj": {
+                              "type": "text",
+                              "primary": false,
+                              "unique": false,
+                              "nullable": true,
+                              "name": "username"
+                            }
+                          },
+                          "operation": "="
+                        }
+                      ],
+                      "conditional": null,
+                      "valid": true
+                    },
+                    "query": "select \"id\" from \"users\" where \"users\".\"username\" = ?"
+                  }
+                },
+                "meta": [
+                  {
+                    "type": "number",
+                    "name": "id"
+                  }
+                ],
+                "outputType": "object"
+              },
+              {
+                "name": "hash",
+                "module": "crypto",
+                "action": "passwordHash",
+                "options": {
+                  "password": "{{$_POST.new_password}}",
+                  "algo": "argon2id"
+                },
+                "outputType": "text"
+              },
+              {
+                "name": "update_new_password",
+                "module": "dbupdater",
+                "action": "update",
+                "options": {
+                  "connection": "database",
+                  "sql": {
+                    "type": "update",
+                    "values": [
+                      {
+                        "table": "users",
+                        "column": "password",
+                        "type": "text",
+                        "value": "{{hash}}"
+                      },
+                      {
+                        "table": "users",
+                        "column": "updated",
+                        "type": "datetime",
+                        "value": "NOW()"
+                      }
+                    ],
+                    "table": "users",
+                    "wheres": {
+                      "condition": "AND",
+                      "rules": [
+                        {
+                          "id": "id",
+                          "field": "id",
+                          "type": "double",
+                          "operator": "equal",
+                          "value": "{{get_creds.id}}",
+                          "data": {
+                            "column": "id"
+                          },
+                          "operation": "="
+                        }
+                      ],
+                      "conditional": null,
+                      "valid": true
+                    },
+                    "returning": "id",
+                    "query": "update \"users\" set \"password\" = ?, \"updated\" = ? where \"id\" = ?",
+                    "params": [
+                      {
+                        "name": ":P1",
+                        "type": "expression",
+                        "value": "{{hash}}",
+                        "test": ""
+                      },
+                      {
+                        "operator": "equal",
+                        "type": "expression",
+                        "name": ":P2",
+                        "value": "{{get_creds.id}}",
+                        "test": ""
+                      }
+                    ]
+                  }
+                },
+                "meta": [
+                  {
+                    "name": "affected",
+                    "type": "number"
+                  }
+                ]
+              },
+              {
+                "name": "log_password_change",
+                "module": "dbupdater",
+                "action": "insert",
+                "options": {
+                  "connection": "database",
+                  "sql": {
+                    "type": "insert",
+                    "values": [
+                      {
+                        "table": "user_logs",
+                        "column": "userid",
+                        "type": "number",
+                        "value": "{{get_creds.id}}"
+                      },
+                      {
+                        "table": "user_logs",
+                        "column": "activity",
+                        "type": "text",
+                        "value": "Password reset successful"
+                      },
+                      {
+                        "table": "user_logs",
+                        "column": "created",
+                        "type": "datetime",
+                        "value": "NOW()"
+                      }
+                    ],
+                    "table": "user_logs",
+                    "returning": "id",
+                    "query": "insert into \"user_logs\" (\"activity\", \"created\", \"userid\") values (?, ?, ?)",
+                    "params": [
+                      {
+                        "name": ":P1",
+                        "type": "expression",
+                        "value": "{{get_creds.id}}",
+                        "test": ""
+                      }
+                    ]
+                  }
+                },
+                "meta": [
+                  {
+                    "name": "identity",
+                    "type": "text"
+                  },
+                  {
+                    "name": "affected",
+                    "type": "number"
+                  }
+                ]
+              },
+              {
+                "name": "delete_user_action",
+                "module": "dbupdater",
+                "action": "delete",
+                "options": {
+                  "connection": "database",
+                  "sql": {
+                    "type": "delete",
+                    "table": "user_actions",
+                    "wheres": {
+                      "condition": "AND",
+                      "rules": [
+                        {
+                          "id": "id",
+                          "field": "id",
+                          "type": "double",
+                          "operator": "equal",
+                          "value": "{{get_user_action[0].id}}",
+                          "data": {
+                            "column": "id"
+                          },
+                          "operation": "="
+                        }
+                      ],
+                      "conditional": null,
+                      "valid": true
+                    },
+                    "returning": "id",
+                    "query": "delete from \"user_actions\" where \"id\" = ?",
+                    "params": [
+                      {
+                        "operator": "equal",
+                        "type": "expression",
+                        "name": ":P1",
+                        "value": "{{get_user_action[0].id}}",
+                        "test": ""
+                      }
+                    ]
+                  }
+                },
+                "meta": [
+                  {
+                    "name": "affected",
+                    "type": "number"
+                  }
+                ]
+              }
+            ]
+          },
+          "else": {
+            "steps": {
+              "name": "log_invalid_password_reset",
+              "module": "dbupdater",
+              "action": "insert",
+              "options": {
+                "connection": "database",
+                "sql": {
+                  "type": "insert",
+                  "values": [
+                    {
+                      "table": "user_logs",
+                      "column": "activity",
+                      "type": "text",
+                      "value": "Invalid key for password reset"
+                    },
+                    {
+                      "table": "user_logs",
+                      "column": "data",
+                      "type": "text",
+                      "value": "{{$_POST.key}}"
+                    },
+                    {
+                      "table": "user_logs",
+                      "column": "created",
+                      "type": "datetime",
+                      "value": "NOW()"
+                    }
+                  ],
+                  "table": "user_logs",
+                  "returning": "id",
+                  "query": "insert into \"user_logs\" (\"activity\", \"created\", \"data\") values (?, ?, ?)",
+                  "params": [
+                    {
+                      "name": ":P1",
+                      "type": "expression",
+                      "value": "{{$_POST.key}}",
+                      "test": ""
+                    }
+                  ]
+                }
+              },
+              "meta": [
+                {
+                  "name": "identity",
+                  "type": "text"
+                },
+                {
+                  "name": "affected",
+                  "type": "number"
+                }
+              ]
+            }
+          }
+        },
+        "outputType": "boolean"
+      }
+    ]
+  },
+  "usedModules": {
+    "argon2": "^0.30.2"
+  }
+}
