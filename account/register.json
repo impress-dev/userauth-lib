@@ -22,510 +22,532 @@
     ]
   },
   "exec": {
-    "steps": [
-      {
-        "name": "",
-        "module": "core",
-        "action": "condition",
-        "options": {
-          "if": "{{$_ENV.RECAPTCHA_SECRET_KEY!=null&&$_ENV.RECAPTCHA_SECRET_KEY.length()>0}}",
-          "then": {
-            "steps": {
-              "name": "recaptcha",
-              "module": "recaptcha",
-              "action": "validate",
+    "steps": {
+      "name": "",
+      "module": "core",
+      "action": "condition",
+      "options": {
+        "if": "{{!$_ENV.USERAUTH_DISABLE_REGISTRATIONS}}",
+        "then": {
+          "steps": [
+            {
+              "name": "",
+              "module": "core",
+              "action": "condition",
               "options": {
-                "secret": "{{$_ENV.RECAPTCHA_SECRET_KEY}}"
-              }
-            }
-          }
-        },
-        "outputType": "boolean"
-      },
-      {
-        "name": "username",
-        "module": "core",
-        "action": "setvalue",
-        "options": {
-          "value": "{{$_POST.username.lowercase()}}"
-        },
-        "meta": [],
-        "outputType": "text"
-      },
-      {
-        "name": "sc_check_if_username_already_exists",
-        "module": "dbconnector",
-        "action": "single",
-        "options": {
-          "connection": "database",
-          "sql": {
-            "type": "SELECT",
-            "columns": [
-              {
-                "table": "users",
-                "column": "id"
-              },
-              {
-                "table": "users",
-                "column": "username"
-              }
-            ],
-            "params": [
-              {
-                "operator": "equal",
-                "type": "expression",
-                "name": ":P1",
-                "value": "{{username}}",
-                "test": ""
-              }
-            ],
-            "table": {
-              "name": "users"
-            },
-            "primary": "id",
-            "joins": [],
-            "wheres": {
-              "condition": "AND",
-              "rules": [
-                {
-                  "id": "users.username",
-                  "field": "users.username",
-                  "type": "string",
-                  "operator": "equal",
-                  "value": "{{username}}",
-                  "data": {
-                    "table": "users",
-                    "column": "username",
-                    "type": "text",
-                    "columnObj": {
-                      "type": "text",
-                      "primary": false,
-                      "unique": false,
-                      "nullable": true,
-                      "name": "username"
+                "if": "{{$_ENV.RECAPTCHA_SECRET_KEY!=null&&$_ENV.RECAPTCHA_SECRET_KEY.length()>0}}",
+                "then": {
+                  "steps": {
+                    "name": "recaptcha",
+                    "module": "recaptcha",
+                    "action": "validate",
+                    "options": {
+                      "secret": "{{$_ENV.RECAPTCHA_SECRET_KEY}}"
                     }
+                  }
+                }
+              },
+              "outputType": "boolean"
+            },
+            {
+              "name": "username",
+              "module": "core",
+              "action": "setvalue",
+              "options": {
+                "value": "{{$_POST.username.lowercase()}}"
+              },
+              "meta": [],
+              "outputType": "text"
+            },
+            {
+              "name": "sc_check_if_username_already_exists",
+              "module": "dbconnector",
+              "action": "single",
+              "options": {
+                "connection": "database",
+                "sql": {
+                  "type": "SELECT",
+                  "columns": [
+                    {
+                      "table": "users",
+                      "column": "id"
+                    },
+                    {
+                      "table": "users",
+                      "column": "username"
+                    }
+                  ],
+                  "params": [
+                    {
+                      "operator": "equal",
+                      "type": "expression",
+                      "name": ":P1",
+                      "value": "{{username}}",
+                      "test": ""
+                    }
+                  ],
+                  "table": {
+                    "name": "users"
                   },
-                  "operation": "="
+                  "primary": "id",
+                  "joins": [],
+                  "wheres": {
+                    "condition": "AND",
+                    "rules": [
+                      {
+                        "id": "users.username",
+                        "field": "users.username",
+                        "type": "string",
+                        "operator": "equal",
+                        "value": "{{username}}",
+                        "data": {
+                          "table": "users",
+                          "column": "username",
+                          "type": "text",
+                          "columnObj": {
+                            "type": "text",
+                            "primary": false,
+                            "unique": false,
+                            "nullable": true,
+                            "name": "username"
+                          }
+                        },
+                        "operation": "="
+                      }
+                    ],
+                    "conditional": null,
+                    "valid": true
+                  },
+                  "query": "SELECT id, username\nFROM users\nWHERE username = :P1 /* {{username}} */"
+                }
+              },
+              "meta": [
+                {
+                  "type": "number",
+                  "name": "id"
+                },
+                {
+                  "type": "text",
+                  "name": "username"
                 }
               ],
-              "conditional": null,
-              "valid": true
+              "outputType": "object"
             },
-            "query": "SELECT id, username\nFROM users\nWHERE username = :P1 /* {{username}} */"
-          }
-        },
-        "meta": [
-          {
-            "type": "number",
-            "name": "id"
-          },
-          {
-            "type": "text",
-            "name": "username"
-          }
-        ],
-        "outputType": "object"
-      },
-      {
-        "name": "",
-        "module": "core",
-        "action": "condition",
-        "options": {
-          "if": "{{sc_check_if_username_already_exists.username==username}}",
-          "then": {
-            "steps": [
-              {
-                "name": "log_register_request_existing_username",
-                "module": "dbupdater",
-                "action": "insert",
-                "options": {
-                  "connection": "database",
-                  "sql": {
-                    "type": "insert",
-                    "values": [
-                      {
-                        "table": "user_logs",
-                        "column": "userid",
-                        "type": "number",
-                        "value": "{{sc_check_if_username_already_exists.id}}"
+            {
+              "name": "",
+              "module": "core",
+              "action": "condition",
+              "options": {
+                "if": "{{sc_check_if_username_already_exists.username==username}}",
+                "then": {
+                  "steps": [
+                    {
+                      "name": "log_register_request_existing_username",
+                      "module": "dbupdater",
+                      "action": "insert",
+                      "options": {
+                        "connection": "database",
+                        "sql": {
+                          "type": "insert",
+                          "values": [
+                            {
+                              "table": "user_logs",
+                              "column": "userid",
+                              "type": "number",
+                              "value": "{{sc_check_if_username_already_exists.id}}"
+                            },
+                            {
+                              "table": "user_logs",
+                              "column": "activity",
+                              "type": "text",
+                              "value": "Register request for existing username"
+                            },
+                            {
+                              "table": "user_logs",
+                              "column": "data",
+                              "type": "text",
+                              "value": "{{sc_check_if_username_already_exists.username}}"
+                            },
+                            {
+                              "table": "user_logs",
+                              "column": "created",
+                              "type": "datetime",
+                              "value": "NOW()"
+                            }
+                          ],
+                          "table": "user_logs",
+                          "returning": "id",
+                          "query": "INSERT INTO user_logs\n(userid, activity, data, created) VALUES (:P1 /* {{sc_check_if_username_already_exists.id}} */, 'Register request for existing username', :P2 /* {{sc_check_if_username_already_exists.username}} */, 'NOW()')",
+                          "params": [
+                            {
+                              "name": ":P1",
+                              "type": "expression",
+                              "value": "{{sc_check_if_username_already_exists.id}}",
+                              "test": ""
+                            },
+                            {
+                              "name": ":P2",
+                              "type": "expression",
+                              "value": "{{sc_check_if_username_already_exists.username}}",
+                              "test": ""
+                            }
+                          ]
+                        }
                       },
-                      {
-                        "table": "user_logs",
-                        "column": "activity",
-                        "type": "text",
-                        "value": "Register request for existing username"
-                      },
-                      {
-                        "table": "user_logs",
-                        "column": "data",
-                        "type": "text",
-                        "value": "{{sc_check_if_username_already_exists.username}}"
-                      },
-                      {
-                        "table": "user_logs",
-                        "column": "created",
-                        "type": "datetime",
-                        "value": "NOW()"
-                      }
-                    ],
-                    "table": "user_logs",
-                    "returning": "id",
-                    "query": "INSERT INTO user_logs\n(userid, activity, data, created) VALUES (:P1 /* {{sc_check_if_username_already_exists.id}} */, 'Register request for existing username', :P2 /* {{sc_check_if_username_already_exists.username}} */, 'NOW()')",
-                    "params": [
-                      {
-                        "name": ":P1",
-                        "type": "expression",
-                        "value": "{{sc_check_if_username_already_exists.id}}",
-                        "test": ""
-                      },
-                      {
-                        "name": ":P2",
-                        "type": "expression",
-                        "value": "{{sc_check_if_username_already_exists.username}}",
-                        "test": ""
-                      }
-                    ]
-                  }
-                },
-                "meta": [
-                  {
-                    "name": "identity",
-                    "type": "text"
-                  },
-                  {
-                    "name": "affected",
-                    "type": "number"
-                  }
-                ]
-              },
-              {
-                "name": "refresh",
-                "module": "sockets",
-                "action": "refresh",
-                "options": {
-                  "action": "userauth/admin/info"
-                }
-              },
-              {
-                "name": "",
-                "module": "core",
-                "action": "response",
-                "options": {
-                  "status": 409,
-                  "data": "User already exists"
-                }
-              }
-            ]
-          },
-          "else": {
-            "steps": [
-              {
-                "name": "hash",
-                "module": "crypto",
-                "action": "passwordHash",
-                "options": {
-                  "algo": "argon2id",
-                  "password": "{{$_POST.password}}"
-                },
-                "outputType": "text"
-              },
-              {
-                "name": "delete_if_already_pending",
-                "module": "dbupdater",
-                "action": "delete",
-                "options": {
-                  "connection": "database",
-                  "sql": {
-                    "type": "delete",
-                    "table": "user_actions",
-                    "wheres": {
-                      "condition": "AND",
-                      "rules": [
+                      "meta": [
                         {
-                          "id": "username",
-                          "field": "username",
-                          "type": "string",
-                          "operator": "equal",
-                          "value": "{{username}}",
-                          "data": {
-                            "column": "username"
-                          },
-                          "operation": "="
+                          "name": "identity",
+                          "type": "text"
                         },
                         {
-                          "id": "status",
-                          "field": "status",
-                          "type": "string",
-                          "operator": "equal",
-                          "value": "PENDING_VALIDATION",
-                          "data": {
-                            "column": "status"
-                          },
-                          "operation": "="
+                          "name": "affected",
+                          "type": "number"
                         }
-                      ],
-                      "conditional": null,
-                      "valid": true
+                      ]
                     },
-                    "returning": "id",
-                    "query": "DELETE\nFROM user_actions\nWHERE username = :P1 /* {{username}} */ AND status = 'PENDING_VALIDATION'",
-                    "params": [
-                      {
-                        "operator": "equal",
-                        "type": "expression",
-                        "name": ":P1",
-                        "value": "{{username}}",
-                        "test": ""
-                      }
-                    ]
-                  }
-                },
-                "meta": [
-                  {
-                    "name": "affected",
-                    "type": "number"
-                  }
-                ]
-              },
-              {
-                "name": "insert_pending_user_action",
-                "module": "dbupdater",
-                "action": "insert",
-                "options": {
-                  "connection": "database",
-                  "sql": {
-                    "type": "insert",
-                    "values": [
-                      {
-                        "table": "user_actions",
-                        "column": "username",
-                        "type": "text",
-                        "value": "{{username}}"
-                      },
-                      {
-                        "table": "user_actions",
-                        "column": "password",
-                        "type": "text",
-                        "value": "{{hash}}"
-                      },
-                      {
-                        "table": "user_actions",
-                        "column": "key",
-                        "type": "text",
-                        "value": "{{UUID}}"
-                      },
-                      {
-                        "table": "user_actions",
-                        "column": "status",
-                        "type": "text",
-                        "value": "PENDING_VALIDATION"
-                      },
-                      {
-                        "table": "user_actions",
-                        "column": "created",
-                        "type": "datetime",
-                        "value": "NOW()"
-                      },
-                      {
-                        "table": "user_actions",
-                        "column": "updated",
-                        "type": "datetime",
-                        "value": "NOW()"
-                      }
-                    ],
-                    "table": "user_actions",
-                    "returning": "id",
-                    "query": "INSERT INTO user_actions\n(username, password, key, status, created, updated) VALUES (:P1 /* {{username}} */, :P2 /* {{hash}} */, :P3 /* {{UUID}} */, 'PENDING_VALIDATION', 'NOW()', 'NOW()')",
-                    "params": [
-                      {
-                        "name": ":P1",
-                        "type": "expression",
-                        "value": "{{username}}",
-                        "test": ""
-                      },
-                      {
-                        "name": ":P2",
-                        "type": "expression",
-                        "value": "{{hash}}",
-                        "test": ""
-                      },
-                      {
-                        "name": ":P3",
-                        "type": "expression",
-                        "value": "{{UUID}}",
-                        "test": ""
-                      }
-                    ]
-                  }
-                },
-                "meta": [
-                  {
-                    "name": "identity",
-                    "type": "text"
-                  },
-                  {
-                    "name": "affected",
-                    "type": "number"
-                  }
-                ]
-              },
-              {
-                "name": "get_key",
-                "module": "dbconnector",
-                "action": "single",
-                "options": {
-                  "connection": "database",
-                  "sql": {
-                    "type": "SELECT",
-                    "columns": [
-                      {
-                        "table": "user_actions",
-                        "column": "key"
-                      }
-                    ],
-                    "params": [
-                      {
-                        "operator": "equal",
-                        "type": "expression",
-                        "name": ":P1",
-                        "value": "{{insert_pending_user_action.identity}}",
-                        "test": ""
-                      }
-                    ],
-                    "table": {
-                      "name": "user_actions"
-                    },
-                    "primary": "id",
-                    "joins": [],
-                    "wheres": {
-                      "condition": "AND",
-                      "rules": [
-                        {
-                          "id": "user_actions.id",
-                          "field": "user_actions.id",
-                          "type": "double",
-                          "operator": "equal",
-                          "value": "{{insert_pending_user_action.identity}}",
-                          "data": {
-                            "table": "user_actions",
-                            "column": "id",
-                            "type": "number",
-                            "columnObj": {
-                              "type": "increments",
-                              "default": "",
-                              "primary": true,
-                              "unique": true,
-                              "nullable": false,
-                              "name": "id"
-                            }
-                          },
-                          "operation": "="
-                        }
-                      ],
-                      "conditional": null,
-                      "valid": true
-                    },
-                    "query": "SELECT key\nFROM user_actions\nWHERE id = :P1 /* {{insert_pending_user_action.identity}} */"
-                  }
-                },
-                "meta": [
-                  {
-                    "type": "text",
-                    "name": "key"
-                  }
-                ],
-                "outputType": "object"
-              },
-              {
-                "name": "log_register_request",
-                "module": "dbupdater",
-                "action": "insert",
-                "options": {
-                  "connection": "database",
-                  "sql": {
-                    "type": "insert",
-                    "values": [
-                      {
-                        "table": "user_logs",
-                        "column": "activity",
-                        "type": "text",
-                        "value": "Register request"
-                      },
-                      {
-                        "table": "user_logs",
-                        "column": "data",
-                        "type": "text",
-                        "value": "{{username}}"
-                      },
-                      {
-                        "table": "user_logs",
-                        "column": "created",
-                        "type": "datetime",
-                        "value": "NOW()"
-                      }
-                    ],
-                    "table": "user_logs",
-                    "returning": "id",
-                    "query": "INSERT INTO user_logs\n(activity, data, created) VALUES ('Register request', :P1 /* {{username}} */, 'NOW()')",
-                    "params": [
-                      {
-                        "name": ":P1",
-                        "type": "expression",
-                        "value": "{{username}}",
-                        "test": ""
-                      }
-                    ]
-                  }
-                },
-                "meta": [
-                  {
-                    "name": "identity",
-                    "type": "text"
-                  },
-                  {
-                    "name": "affected",
-                    "type": "number"
-                  }
-                ]
-              },
-              {
-                "name": "refresh1",
-                "module": "sockets",
-                "action": "refresh",
-                "options": {
-                  "action": "userauth/admin/info"
-                }
-              },
-              {
-                "name": "",
-                "module": "core",
-                "action": "condition",
-                "options": {
-                  "if": "{{$_ENV.EMAIL_SENDER!=null&&$_ENV.EMAIL_SENDER.length()>0&&$_ENV.EMAIL_SMTP_USER!=null&&$_ENV.EMAIL_SMTP_USER.length()>0&&$_ENV.EMAIL_SMTP_PASSWORD!=null&&$_ENV.EMAIL_SMTP_PASSWORD.length()>0&&$_ENV.EMAIL_SMTP_HOST!=null&&$_ENV.EMAIL_SMTP_HOST.length()>0&&$_ENV.EMAIL_SMTP_PORT!=null&&$_ENV.EMAIL_SMTP_PORT.length()>0}}",
-                  "then": {
-                    "steps": {
-                      "name": "",
-                      "module": "mail",
-                      "action": "send",
+                    {
+                      "name": "refresh",
+                      "module": "sockets",
+                      "action": "refresh",
                       "options": {
-                        "instance": "mail",
-                        "subject": "Complete Registration",
-                        "fromName": "{{$_ENV.EMAIL_SENDER}}",
-                        "fromEmail": "{{$_ENV.EMAIL_SENDER}}",
-                        "toEmail": "{{$_POST.username}}",
-                        "body": "Please follow the below link to complete registration.\n\n{{$_SERVER.BASE_URL}}/api/{{$_ENV.USERAUTH_VALIDATE_API?$_ENV.USERAUTH_VALIDATE_API:'userauth/account/validate'}}?key={{get_key.key}}"
+                        "action": "userauth/admin/info"
+                      }
+                    },
+                    {
+                      "name": "",
+                      "module": "core",
+                      "action": "response",
+                      "options": {
+                        "status": 409,
+                        "data": "User already exists"
                       }
                     }
-                  }
+                  ]
                 },
-                "outputType": "boolean"
-              }
-            ]
-          }
+                "else": {
+                  "steps": [
+                    {
+                      "name": "hash",
+                      "module": "crypto",
+                      "action": "passwordHash",
+                      "options": {
+                        "algo": "argon2id",
+                        "password": "{{$_POST.password}}"
+                      },
+                      "outputType": "text"
+                    },
+                    {
+                      "name": "delete_if_already_pending",
+                      "module": "dbupdater",
+                      "action": "delete",
+                      "options": {
+                        "connection": "database",
+                        "sql": {
+                          "type": "delete",
+                          "table": "user_actions",
+                          "wheres": {
+                            "condition": "AND",
+                            "rules": [
+                              {
+                                "id": "username",
+                                "field": "username",
+                                "type": "string",
+                                "operator": "equal",
+                                "value": "{{username}}",
+                                "data": {
+                                  "column": "username"
+                                },
+                                "operation": "="
+                              },
+                              {
+                                "id": "status",
+                                "field": "status",
+                                "type": "string",
+                                "operator": "equal",
+                                "value": "PENDING_VALIDATION",
+                                "data": {
+                                  "column": "status"
+                                },
+                                "operation": "="
+                              }
+                            ],
+                            "conditional": null,
+                            "valid": true
+                          },
+                          "returning": "id",
+                          "query": "DELETE\nFROM user_actions\nWHERE username = :P1 /* {{username}} */ AND status = 'PENDING_VALIDATION'",
+                          "params": [
+                            {
+                              "operator": "equal",
+                              "type": "expression",
+                              "name": ":P1",
+                              "value": "{{username}}",
+                              "test": ""
+                            }
+                          ]
+                        }
+                      },
+                      "meta": [
+                        {
+                          "name": "affected",
+                          "type": "number"
+                        }
+                      ]
+                    },
+                    {
+                      "name": "insert_pending_user_action",
+                      "module": "dbupdater",
+                      "action": "insert",
+                      "options": {
+                        "connection": "database",
+                        "sql": {
+                          "type": "insert",
+                          "values": [
+                            {
+                              "table": "user_actions",
+                              "column": "username",
+                              "type": "text",
+                              "value": "{{username}}"
+                            },
+                            {
+                              "table": "user_actions",
+                              "column": "password",
+                              "type": "text",
+                              "value": "{{hash}}"
+                            },
+                            {
+                              "table": "user_actions",
+                              "column": "key",
+                              "type": "text",
+                              "value": "{{UUID}}"
+                            },
+                            {
+                              "table": "user_actions",
+                              "column": "status",
+                              "type": "text",
+                              "value": "PENDING_VALIDATION"
+                            },
+                            {
+                              "table": "user_actions",
+                              "column": "created",
+                              "type": "datetime",
+                              "value": "NOW()"
+                            },
+                            {
+                              "table": "user_actions",
+                              "column": "updated",
+                              "type": "datetime",
+                              "value": "NOW()"
+                            }
+                          ],
+                          "table": "user_actions",
+                          "returning": "id",
+                          "query": "INSERT INTO user_actions\n(username, password, key, status, created, updated) VALUES (:P1 /* {{username}} */, :P2 /* {{hash}} */, :P3 /* {{UUID}} */, 'PENDING_VALIDATION', 'NOW()', 'NOW()')",
+                          "params": [
+                            {
+                              "name": ":P1",
+                              "type": "expression",
+                              "value": "{{username}}",
+                              "test": ""
+                            },
+                            {
+                              "name": ":P2",
+                              "type": "expression",
+                              "value": "{{hash}}",
+                              "test": ""
+                            },
+                            {
+                              "name": ":P3",
+                              "type": "expression",
+                              "value": "{{UUID}}",
+                              "test": ""
+                            }
+                          ]
+                        }
+                      },
+                      "meta": [
+                        {
+                          "name": "identity",
+                          "type": "text"
+                        },
+                        {
+                          "name": "affected",
+                          "type": "number"
+                        }
+                      ]
+                    },
+                    {
+                      "name": "get_key",
+                      "module": "dbconnector",
+                      "action": "single",
+                      "options": {
+                        "connection": "database",
+                        "sql": {
+                          "type": "SELECT",
+                          "columns": [
+                            {
+                              "table": "user_actions",
+                              "column": "key"
+                            }
+                          ],
+                          "params": [
+                            {
+                              "operator": "equal",
+                              "type": "expression",
+                              "name": ":P1",
+                              "value": "{{insert_pending_user_action.identity}}",
+                              "test": ""
+                            }
+                          ],
+                          "table": {
+                            "name": "user_actions"
+                          },
+                          "primary": "id",
+                          "joins": [],
+                          "wheres": {
+                            "condition": "AND",
+                            "rules": [
+                              {
+                                "id": "user_actions.id",
+                                "field": "user_actions.id",
+                                "type": "double",
+                                "operator": "equal",
+                                "value": "{{insert_pending_user_action.identity}}",
+                                "data": {
+                                  "table": "user_actions",
+                                  "column": "id",
+                                  "type": "number",
+                                  "columnObj": {
+                                    "type": "increments",
+                                    "default": "",
+                                    "primary": true,
+                                    "unique": true,
+                                    "nullable": false,
+                                    "name": "id"
+                                  }
+                                },
+                                "operation": "="
+                              }
+                            ],
+                            "conditional": null,
+                            "valid": true
+                          },
+                          "query": "SELECT key\nFROM user_actions\nWHERE id = :P1 /* {{insert_pending_user_action.identity}} */"
+                        }
+                      },
+                      "meta": [
+                        {
+                          "type": "text",
+                          "name": "key"
+                        }
+                      ],
+                      "outputType": "object"
+                    },
+                    {
+                      "name": "log_register_request",
+                      "module": "dbupdater",
+                      "action": "insert",
+                      "options": {
+                        "connection": "database",
+                        "sql": {
+                          "type": "insert",
+                          "values": [
+                            {
+                              "table": "user_logs",
+                              "column": "activity",
+                              "type": "text",
+                              "value": "Register request"
+                            },
+                            {
+                              "table": "user_logs",
+                              "column": "data",
+                              "type": "text",
+                              "value": "{{username}}"
+                            },
+                            {
+                              "table": "user_logs",
+                              "column": "created",
+                              "type": "datetime",
+                              "value": "NOW()"
+                            }
+                          ],
+                          "table": "user_logs",
+                          "returning": "id",
+                          "query": "INSERT INTO user_logs\n(activity, data, created) VALUES ('Register request', :P1 /* {{username}} */, 'NOW()')",
+                          "params": [
+                            {
+                              "name": ":P1",
+                              "type": "expression",
+                              "value": "{{username}}",
+                              "test": ""
+                            }
+                          ]
+                        }
+                      },
+                      "meta": [
+                        {
+                          "name": "identity",
+                          "type": "text"
+                        },
+                        {
+                          "name": "affected",
+                          "type": "number"
+                        }
+                      ]
+                    },
+                    {
+                      "name": "refresh1",
+                      "module": "sockets",
+                      "action": "refresh",
+                      "options": {
+                        "action": "userauth/admin/info"
+                      }
+                    },
+                    {
+                      "name": "",
+                      "module": "core",
+                      "action": "condition",
+                      "options": {
+                        "if": "{{$_ENV.EMAIL_SENDER!=null&&$_ENV.EMAIL_SENDER.length()>0&&$_ENV.EMAIL_SMTP_USER!=null&&$_ENV.EMAIL_SMTP_USER.length()>0&&$_ENV.EMAIL_SMTP_PASSWORD!=null&&$_ENV.EMAIL_SMTP_PASSWORD.length()>0&&$_ENV.EMAIL_SMTP_HOST!=null&&$_ENV.EMAIL_SMTP_HOST.length()>0&&$_ENV.EMAIL_SMTP_PORT!=null&&$_ENV.EMAIL_SMTP_PORT.length()>0}}",
+                        "then": {
+                          "steps": {
+                            "name": "",
+                            "module": "mail",
+                            "action": "send",
+                            "options": {
+                              "instance": "mail",
+                              "subject": "Complete Registration",
+                              "fromName": "{{$_ENV.EMAIL_SENDER}}",
+                              "fromEmail": "{{$_ENV.EMAIL_SENDER}}",
+                              "toEmail": "{{$_POST.username}}",
+                              "body": "Please follow the below link to complete registration.\n\n{{$_SERVER.BASE_URL}}/api/{{$_ENV.USERAUTH_VALIDATE_API?$_ENV.USERAUTH_VALIDATE_API:'userauth/account/validate'}}?key={{get_key.key}}"
+                            }
+                          }
+                        }
+                      },
+                      "outputType": "boolean"
+                    }
+                  ]
+                }
+              },
+              "outputType": "boolean"
+            }
+          ]
         },
-        "outputType": "boolean"
-      }
-    ]
+        "else": {
+          "steps": {
+            "name": "",
+            "module": "core",
+            "action": "response",
+            "options": {
+              "status": 409,
+              "data": "Registration is disabled"
+            }
+          }
+        }
+      },
+      "outputType": "boolean"
+    }
   },
   "usedModules": {
     "argon2": "^0.30.2"
