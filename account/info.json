@@ -1,0 +1,80 @@
+[
+  "lib/userauth/account/restrict",
+  {
+    "name": "identity",
+    "module": "auth",
+    "action": "identify",
+    "options": {
+      "provider": "security"
+    },
+    "output": true,
+    "meta": []
+  },
+  {
+    "name": "roles",
+    "module": "dbconnector",
+    "action": "single",
+    "options": {
+      "connection": "database",
+      "sql": {
+        "type": "select",
+        "columns": [
+          {
+            "table": "user_permissions",
+            "column": "role"
+          }
+        ],
+        "params": [
+          {
+            "operator": "equal",
+            "type": "expression",
+            "name": ":P1",
+            "value": "{{identity}}",
+            "test": ""
+          }
+        ],
+        "table": {
+          "name": "user_permissions"
+        },
+        "primary": "id",
+        "joins": [],
+        "wheres": {
+          "condition": "AND",
+          "rules": [
+            {
+              "id": "user_permissions.userid",
+              "field": "user_permissions.userid",
+              "type": "double",
+              "operator": "equal",
+              "value": "{{identity}}",
+              "data": {
+                "table": "user_permissions",
+                "column": "userid",
+                "type": "number",
+                "columnObj": {
+                  "type": "integer",
+                  "primary": false,
+                  "unique": false,
+                  "nullable": true,
+                  "name": "userid"
+                }
+              },
+              "operation": "="
+            }
+          ],
+          "conditional": null,
+          "valid": true
+        },
+        "query": "select \"role\" from \"user_permissions\" where \"user_permissions\".\"userid\" = ?"
+      }
+    },
+    "output": true,
+    "meta": [
+      {
+        "type": "text",
+        "name": "role"
+      }
+    ],
+    "outputType": "object"
+  }
+]

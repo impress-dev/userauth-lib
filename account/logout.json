@@ -1,0 +1,159 @@
+[
+  "lib/userauth/account/restrict",
+  {
+    "name": "identity",
+    "module": "auth",
+    "action": "identify",
+    "options": {
+      "provider": "security"
+    },
+    "meta": []
+  },
+  {
+    "name": "get_creds",
+    "module": "dbconnector",
+    "action": "single",
+    "options": {
+      "connection": "database",
+      "sql": {
+        "type": "select",
+        "columns": [
+          {
+            "table": "users",
+            "column": "username"
+          }
+        ],
+        "params": [
+          {
+            "operator": "equal",
+            "type": "expression",
+            "name": ":P1",
+            "value": "{{identity}}",
+            "test": ""
+          }
+        ],
+        "table": {
+          "name": "users"
+        },
+        "primary": "id",
+        "joins": [],
+        "wheres": {
+          "condition": "AND",
+          "rules": [
+            {
+              "id": "users.id",
+              "field": "users.id",
+              "type": "double",
+              "operator": "equal",
+              "value": "{{identity}}",
+              "data": {
+                "table": "users",
+                "column": "id",
+                "type": "number",
+                "columnObj": {
+                  "type": "increments",
+                  "default": "",
+                  "primary": true,
+                  "unique": true,
+                  "nullable": false,
+                  "name": "id"
+                }
+              },
+              "operation": "="
+            }
+          ],
+          "conditional": null,
+          "valid": true
+        },
+        "query": "select \"username\" from \"users\" where \"users\".\"id\" = ?"
+      }
+    },
+    "meta": [
+      {
+        "type": "text",
+        "name": "username"
+      }
+    ],
+    "outputType": "object"
+  },
+  {
+    "name": "log_logout",
+    "module": "dbupdater",
+    "action": "insert",
+    "options": {
+      "connection": "database",
+      "sql": {
+        "type": "insert",
+        "values": [
+          {
+            "table": "user_logs",
+            "column": "userid",
+            "type": "number",
+            "value": "{{identity}}"
+          },
+          {
+            "table": "user_logs",
+            "column": "activity",
+            "type": "text",
+            "value": "Logout"
+          },
+          {
+            "table": "user_logs",
+            "column": "data",
+            "type": "text",
+            "value": "{{get_creds.username}}"
+          },
+          {
+            "table": "user_logs",
+            "column": "created",
+            "type": "datetime",
+            "value": "NOW()"
+          }
+        ],
+        "table": "user_logs",
+        "returning": "id",
+        "query": "insert into \"user_logs\" (\"activity\", \"created\", \"data\", \"userid\") values (?, ?, ?, ?)",
+        "params": [
+          {
+            "name": ":P1",
+            "type": "expression",
+            "value": "{{identity}}",
+            "test": ""
+          },
+          {
+            "name": ":P2",
+            "type": "expression",
+            "value": "{{get_creds.username}}",
+            "test": ""
+          }
+        ]
+      }
+    },
+    "meta": [
+      {
+        "name": "identity",
+        "type": "text"
+      },
+      {
+        "name": "affected",
+        "type": "number"
+      }
+    ]
+  },
+  {
+    "name": "refresh",
+    "module": "sockets",
+    "action": "refresh",
+    "options": {
+      "action": "userauth/account/info"
+    }
+  },
+  {
+    "name": "",
+    "module": "auth",
+    "action": "logout",
+    "options": {
+      "provider": "security"
+    }
+  }
+]
