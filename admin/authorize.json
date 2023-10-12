@@ -36,7 +36,28 @@
         }
       },
       "else": {
-        "steps": "lib/userauth/admin/restrict"
+        "steps": [
+          "lib/userauth/admin/restrict",
+          {
+            "name": "",
+            "module": "core",
+            "action": "condition",
+            "options": {
+              "if": "{{$_ENV.USERAUTH_POST_AUTHORIZE_REDIRECT}}",
+              "then": {
+                "steps": {
+                  "name": "",
+                  "module": "core",
+                  "action": "redirect",
+                  "options": {
+                    "url": "{{$_ENV.USERAUTH_POST_AUTHORIZE_REDIRECT}}"
+                  }
+                }
+              }
+            },
+            "outputType": "boolean"
+          }
+        ]
       }
     },
     "outputType": "boolean"
