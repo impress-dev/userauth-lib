@@ -43,16 +43,145 @@
             "module": "core",
             "action": "condition",
             "options": {
-              "if": "{{$_ENV.USERAUTH_POST_AUTHORIZE_REDIRECT}}",
+              "if": "{{$_ENV.USERAUTH_POST_AUTHORIZE_API}}",
               "then": {
-                "steps": {
-                  "name": "",
-                  "module": "core",
-                  "action": "redirect",
-                  "options": {
-                    "url": "{{$_ENV.USERAUTH_POST_AUTHORIZE_REDIRECT}}"
+                "steps": [
+                  {
+                    "name": "url",
+                    "module": "core",
+                    "action": "setvalue",
+                    "options": {
+                      "value": "{{$_ENV.USERAUTH_POST_AUTHORIZE_API.startsWith('/')?$_SERVER.BASE_URL+$_ENV.USERAUTH_POST_AUTHORIZE_API:$_ENV.USERAUTH_POST_AUTHORIZE_API}}"
+                    },
+                    "meta": [],
+                    "outputType": "text"
+                  },
+                  {
+                    "name": "api",
+                    "module": "api",
+                    "action": "send",
+                    "options": {
+                      "url": "{{url}}",
+                      "schema": [
+                        {
+                          "type": "object",
+                          "name": "data",
+                          "sub": [
+                            {
+                              "type": "number",
+                              "name": "result"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "object",
+                          "name": "headers",
+                          "sub": [
+                            {
+                              "type": "text",
+                              "name": "connection"
+                            },
+                            {
+                              "type": "text",
+                              "name": "content-length"
+                            },
+                            {
+                              "type": "text",
+                              "name": "content-type"
+                            },
+                            {
+                              "type": "text",
+                              "name": "date"
+                            },
+                            {
+                              "type": "text",
+                              "name": "etag"
+                            },
+                            {
+                              "type": "text",
+                              "name": "keep-alive"
+                            },
+                            {
+                              "type": "text",
+                              "name": "vary"
+                            }
+                          ]
+                        }
+                      ],
+                      "passErrors": false
+                    },
+                    "meta": [
+                      {
+                        "type": "object",
+                        "name": "data",
+                        "sub": [
+                          {
+                            "type": "number",
+                            "name": "result"
+                          }
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "name": "headers",
+                        "sub": [
+                          {
+                            "type": "text",
+                            "name": "connection"
+                          },
+                          {
+                            "type": "text",
+                            "name": "content-length"
+                          },
+                          {
+                            "type": "text",
+                            "name": "content-type"
+                          },
+                          {
+                            "type": "text",
+                            "name": "date"
+                          },
+                          {
+                            "type": "text",
+                            "name": "etag"
+                          },
+                          {
+                            "type": "text",
+                            "name": "keep-alive"
+                          },
+                          {
+                            "type": "text",
+                            "name": "vary"
+                          }
+                        ]
+                      }
+                    ],
+                    "outputType": "object"
+                  },
+                  {
+                    "name": "",
+                    "module": "core",
+                    "action": "condition",
+                    "options": {
+                      "if": "{{api.data.result}}",
+                      "then": {
+                        "steps": {
+                          "name": "",
+                          "options": {
+                            "comment": "If result is 1 then do nothing"
+                          }
+                        }
+                      },
+                      "else": {
+                        "steps": [
+                          "lib/userauth/account/logout",
+                          "lib/userauth/account/restrict"
+                        ]
+                      }
+                    },
+                    "outputType": "boolean"
                   }
-                }
+                ]
               }
             },
             "outputType": "boolean"

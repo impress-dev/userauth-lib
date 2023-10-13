@@ -43,16 +43,52 @@
             "module": "core",
             "action": "condition",
             "options": {
-              "if": "{{$_ENV.USERAUTH_POST_AUTHORIZE_REDIRECT}}",
+              "if": "{{$_ENV.USERAUTH_POST_AUTHORIZE_API}}",
               "then": {
-                "steps": {
-                  "name": "",
-                  "module": "core",
-                  "action": "redirect",
-                  "options": {
-                    "url": "{{$_ENV.USERAUTH_POST_AUTHORIZE_REDIRECT}}"
+                "steps": [
+                  {
+                    "name": "url",
+                    "module": "core",
+                    "action": "setvalue",
+                    "options": {
+                      "value": "{{$_ENV.USERAUTH_POST_AUTHORIZE_API.startsWith('/')?$_SERVER.BASE_URL+$_ENV.USERAUTH_POST_AUTHORIZE_API:$_ENV.USERAUTH_POST_AUTHORIZE_API}}"
+                    },
+                    "meta": [],
+                    "outputType": "text"
+                  },
+                  {
+                    "name": "api",
+                    "module": "api",
+                    "action": "send",
+                    "options": {
+                      "url": "{{url}}",
+                      "passErrors": false
+                    }
+                  },
+                  {
+                    "name": "",
+                    "module": "core",
+                    "action": "condition",
+                    "options": {
+                      "if": "{{api.data.result}}",
+                      "then": {
+                        "steps": {
+                          "name": "",
+                          "options": {
+                            "comment": "If result is 1 then do nothing"
+                          }
+                        }
+                      },
+                      "else": {
+                        "steps": [
+                          "lib/userauth/account/logout",
+                          "lib/userauth/admin/restrict"
+                        ]
+                      }
+                    },
+                    "outputType": "boolean"
                   }
-                }
+                ]
               }
             },
             "outputType": "boolean"
