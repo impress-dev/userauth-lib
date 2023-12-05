@@ -292,6 +292,99 @@
                 "options": {
                   "action": "userauth/admin/info"
                 }
+              },
+              {
+                "name": "",
+                "module": "core",
+                "action": "condition",
+                "options": {
+                  "if": "{{$_ENV.EMAIL_SENDER!=null&&$_ENV.EMAIL_SENDER.length()>0&&$_ENV.EMAIL_SMTP_USER!=null&&$_ENV.EMAIL_SMTP_USER.length()>0&&$_ENV.EMAIL_SMTP_PASSWORD!=null&&$_ENV.EMAIL_SMTP_PASSWORD.length()>0&&$_ENV.EMAIL_SMTP_HOST!=null&&$_ENV.EMAIL_SMTP_HOST.length()>0&&$_ENV.EMAIL_SMTP_PORT!=null&&$_ENV.EMAIL_SMTP_PORT.length()>0&&$_ENV.EMAIL_NOTIFICATION_ADDRESS!=null&&$_ENV.EMAIL_NOTIFICATION_ADDRESS.length()>0}}",
+                  "then": {
+                    "steps": [
+                      {
+                        "name": "get_user",
+                        "module": "dbconnector",
+                        "action": "single",
+                        "options": {
+                          "connection": "database",
+                          "sql": {
+                            "type": "select",
+                            "columns": [
+                              {
+                                "table": "users",
+                                "column": "username"
+                              }
+                            ],
+                            "params": [
+                              {
+                                "operator": "equal",
+                                "type": "expression",
+                                "name": ":P1",
+                                "value": "{{insert_new_user.identity}}",
+                                "test": ""
+                              }
+                            ],
+                            "table": {
+                              "name": "users"
+                            },
+                            "primary": "id",
+                            "joins": [],
+                            "wheres": {
+                              "condition": "AND",
+                              "rules": [
+                                {
+                                  "id": "users.id",
+                                  "field": "users.id",
+                                  "type": "double",
+                                  "operator": "equal",
+                                  "value": "{{insert_new_user.identity}}",
+                                  "data": {
+                                    "table": "users",
+                                    "column": "id",
+                                    "type": "number",
+                                    "columnObj": {
+                                      "type": "increments",
+                                      "default": "",
+                                      "primary": true,
+                                      "unique": true,
+                                      "nullable": false,
+                                      "name": "id"
+                                    }
+                                  },
+                                  "operation": "="
+                                }
+                              ],
+                              "conditional": null,
+                              "valid": true
+                            },
+                            "query": "select \"username\" from \"users\" where \"users\".\"id\" = ?"
+                          }
+                        },
+                        "meta": [
+                          {
+                            "type": "text",
+                            "name": "username"
+                          }
+                        ],
+                        "outputType": "object"
+                      },
+                      {
+                        "name": "",
+                        "module": "mail",
+                        "action": "send",
+                        "options": {
+                          "instance": "mail",
+                          "subject": "New User Registration",
+                          "fromName": "{{$_ENV.EMAIL_SENDER}}",
+                          "fromEmail": "{{$_ENV.EMAIL_SENDER}}",
+                          "toEmail": "{{$_ENV.EMAIL_NOTIFICATION_ADDRESS}}",
+                          "body": "The following user has registered: {{get_user.username}}"
+                        }
+                      }
+                    ]
+                  }
+                },
+                "outputType": "boolean"
               }
             ]
           },
